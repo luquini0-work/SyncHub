@@ -1,22 +1,29 @@
-FROM python:3.11-slim
+FROM node:18-slim AS frontend-builder
 
 WORKDIR /app
-
-# Install Node.js
-RUN apt-get update && apt-get install -y nodejs npm && rm -rf /var/lib/apt/lists/*
-
-# Install Python dependencies
-COPY backend/requirements.txt ./backend/
-RUN pip install --no-cache-dir -r backend/requirements.txt
-
-# Build frontend
 COPY frontend ./frontend
 WORKDIR /app/frontend
 RUN npm install && npm run build
 
-# Move to app root and expose port
+# ---
+
+FROM python:3.11-slim
+
 WORKDIR /app
+
+# Install Node.js runtime (no es necesario instalar npm nuevamente)
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# Copy Python dependencies
+COPY backend/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy backend
+COPY backend ./backend
+
+# Copy frontend built files
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+
 EXPOSE 5000
 
-# Start the backend
 CMD ["python", "backend/main.py"]
