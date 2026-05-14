@@ -26,4 +26,5 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 EXPOSE 5000
 
-CMD ["python", "backend/main.py"]
+# Usar gunicorn para ejecutar la app
+CMD ["python", "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "5000"]
