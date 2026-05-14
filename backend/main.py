@@ -387,7 +387,7 @@ def get_log(log_id: int):
 def health():
     return {"status": "ok", "time": datetime.datetime.utcnow().isoformat()}
 
-# ── Serve React ────────────────────────────────────────────────────────────────
+# ── Serve React ────────────────────────────────────────────────────────────
 
 frontend_dist = BASE_DIR.parent / "frontend" / "dist"
 if frontend_dist.exists():
@@ -396,3 +396,10 @@ if frontend_dist.exists():
     @app.get("/{full_path:path}")
     def serve_spa(full_path: str):
         return FileResponse(str(frontend_dist / "index.html"))
+
+# ── Run server ─────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 5000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
