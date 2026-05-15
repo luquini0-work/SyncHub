@@ -56,7 +56,7 @@ function CookieModal({ facility, fac_id, onClose, onSaved }) {
       : `${API}/api/facilities/${fac_id}/cookie`
     await fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-API-Key": "synchub2026" },
       body: JSON.stringify({ value })
     })
     onSaved()
@@ -225,7 +225,7 @@ export default function App() {
   const [runningFacs, setRunningFacs] = useState({})
 
   const fetchFacilities = useCallback(async () => {
-    const r = await fetch(`${API}/api/facilities`)
+    const r = await fetch(`${API}/api/facilities`, { headers: { "X-API-Key": "synchub2026" } })
     const data = await r.json()
     setFacilities(prev => {
       const merged = {}
@@ -237,7 +237,7 @@ export default function App() {
   }, [])
 
   const fetchLogs = useCallback(async () => {
-    const r = await fetch(`${API}/api/logs?limit=50`)
+    const r = await fetch(`${API}/api/logs?limit=50`, { headers: { "X-API-Key": "synchub2026" } })
     setLogs(await r.json())
   }, [])
 
@@ -250,10 +250,10 @@ export default function App() {
 
   async function runFacility(fac_id) {
     setFacilities(prev => ({ ...prev, [fac_id]: { ...prev[fac_id], running: true } }))
-    await fetch(`${API}/api/facilities/${fac_id}/run`, { method: "POST" })
+    await fetch(`${API}/api/facilities/${fac_id}/run`, { method: "POST", headers: { "X-API-Key": "synchub2026" } })
     // Poll until done
     const poll = setInterval(async () => {
-      const r = await fetch(`${API}/api/facilities`)
+      const r = await fetch(`${API}/api/facilities`, { headers: { "X-API-Key": "synchub2026" } })
       const data = await r.json()
       const last = data[fac_id]?.last_sync
       if (last && last.status !== "running") {
