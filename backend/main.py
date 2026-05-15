@@ -402,3 +402,8 @@ if frontend_dist.exists():
     @app.get("/{full_path:path}")
     def serve_spa(full_path: str):
         return FileResponse(str(frontend_dist / "index.html"))
+    
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8080))
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")

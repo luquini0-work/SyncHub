@@ -21,11 +21,7 @@ COPY backend ./backend
 # Copy frontend built files
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
-# Copy entrypoint script
-COPY entrypoint.sh /app/
-RUN chmod +x /app/entrypoint.sh
-
 EXPOSE 8080
 
-# Ejecutar el script
-ENTRYPOINT ["/app/entrypoint.sh"]
+# Ejecutar main.py directamente (que lee PORT en Python)
+CMD ["python", "backend/main.py"]
