@@ -1,0 +1,50 @@
+{
+  "catchcorner_accounts": {
+    "cc_main": {
+      "username": "localloginformaint.en.a.nc.e.1.9.940@gmail.com",
+      "password": "odM3ouk^YT4k6nmHmJN4ujXObSEH!5",
+      "access_from": "Corporate"
+    },
+    "cc_breakaway": {
+      "username": "localloginformaint.e.na.nce.19.9.4.0@gmail.com",
+      "password": "u$tm23fRZaY#Xj7PcPMo7fVhO7uoeo",
+      "access_from": "Corporate"
+    },
+    "cc_jesse": {
+      "username": "jessedolk@catchcorner.com",
+      "password": "CCorner22!",
+      "access_from": "Corporate"
+    }
+  },
+  "facilities": {
+    "academy_usa": {
+      "name": "Academy USA",
+      "platform": "mindbody_report",
+      "mb_business_id": "610481",
+      "mb_email": "localloginformaint.en.a.nc.e.1.99.4.0@gmail.com",
+      "mb_password": "CCorner22!",
+      "cc_account": "cc_main",
+      "cc_facility_id": "2105",
+      "sync_days_forward": 60
+    },
+    "breakaway": {
+      "name": "BreakAway Speed Sports Training",
+      "platform": "mindbody_js",
+      "mb_business_id": "15652",
+      "mb_email": "localloginformaint.e.na.nce.19.9.4.0@gmail.com",
+      "mb_password": "CCorner22!",
+      "cc_account": "cc_breakaway",
+      "cc_facility_id": "2284",
+      "sync_days_forward": 60
+    },
+    "pure_soccer_woodlands": {
+      "name": "Pure Soccer - Woodlands",
+      "sync_days_forward": 60
+    },
+    "honey_barry_arena": {
+      "name": "Honey Barry Arena",
+      "finnly_token": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImxvY2FsbG9naW5mb3JtYWludC5lLm5hLm4uYy5lMS45OS40MEBnbWFpbC5jb20iLCJqdGkiOiIxYmY2NzA3NS03ZTNlLTRhNzgtOWU0Zi00ZWU4ZDIyNTU0NmYiLCJVc2VySWQiOiIyOTgzIiwiTmFtZSI6IkNhdGNoQ29ybmVyIiwiQ2F0Y2hDb3JuZXIiOiIyMTgiLCJTaXRlQWRtaW4iOiIyMTgiLCJuYmYiOjE3NTgyMDE4MzgsImV4cCI6MTc1ODIzMDYzOCwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo0OTMyNi8iLCJhdWQiOiJodHRwOi8vbG9jYWxob3N0OjQ5MzI2LyJ9.gtAWW--ExrIcw9XY-Jrl6IM-g8EG3F-i-6YiWZZHhqc",
+      "sync_days_forward": 60
+    }
+  }
+}

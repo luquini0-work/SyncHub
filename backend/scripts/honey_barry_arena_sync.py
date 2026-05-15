@@ -4,34 +4,8 @@ Honey Barry Arena — Sync script
 Fetches bookings from the Finnly Sport API using a JWT Bearer token,
 transforms the data to CatchCorner CSV format, and uploads it.
 
-Token is obtained from:
-  1. Login at https://app.finnlysport.com/security/login
-     user: localloginformaint.e.na.n.c.e1.99.40@gmail.com  pass: Jesse1!
-  2. Go to Facility Management → Calendar (old)
-  3. Open DevTools → Network tab → search for "calendarschedule"
-  4. Copy the Authorization header value (full "Bearer eyJ...") into config.json
-
-The token tends to be long-lived but if the API returns 401, the script
-will print a clear error message with renewal instructions.
-
-API endpoint (POST):
-  https://app.finnlysport.com/event/aaa_event/calendarschedule
-  Body: { SiteId: 218, FacilityIdList: [...], StartDate, EndDate }
-
-Facility IDs → Court names (from the Data sheet):
-  2841 → Arena Lounge
-  2817 → Boardroom
-  3492 → Concession
-  2842 → Holidays
-  2579 → Mini Training Rink
-  2570 → North Rink 2
-  2569 → South Rink 1
-
-Output CSV columns: Date, StartTime, EndTime, Court
-  (matches the expected Output CSV format)
-
-Note: The App Script adds 10 minutes to each event end time —
-      this script replicates that behaviour.
+Token is read from the FINNLY_TOKEN environment variable (Railway → Variables).
+To update: go to SyncHub dashboard → 🔑 Token on Honey Barry Arena.
 
 Run:
   python honey_barry_arena_sync.py
@@ -41,7 +15,6 @@ Run:
 
 import csv
 import sys
-import json
 import datetime
 import argparse
 import os
@@ -62,26 +35,8 @@ FACILITY_MAP = {
     2569: "South Rink 1",
 }
 
-API_URL = "https://app.finnlysport.com/event/aaa_event/calendarschedule"
-LOGIN_URL = "https://app.finnlysport.com/security/login"
-
-
-def load_config(facility_key: str = "honey_barry_arena") -> dict:
-    """Load Finnly token from config.json."""
-    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
-    if not os.path.exists(config_path):
-        raise FileNotFoundError(f"config.json not found at {config_path}")
-    with open(config_path, encoding="utf-8") as f:
-        cfg = json.load(f)
-    return {
-        "finnly_token": cfg["facilities"][facility_key]["finnly_token"],
-        "sync_days":    cfg["facilities"][facility_key].get("sync_days_forward", 60),
-    }
-
-
-_CFG         = load_config()
-FINNLY_TOKEN = _CFG["finnly_token"]
-SYNC_DAYS    = _CFG["sync_days"]
+API_URL   = "https://app.finnlysport.com/event/aaa_event/calendarschedule"
+SYNC_DAYS = 60
 
 CC_USERNAME    = "localloginformaint.e.na.n.c.e1.9.9.40@gmail.com"
 CC_PASSWORD    = "z2bVyt!JHrAF8KdNm#3m!z*$8NJgbR"
@@ -89,17 +44,36 @@ CC_FACILITY    = "2354"
 CC_ACCESS_FROM = "Corporate"
 
 
+def get_finnly_token() -> str:
+    """
+    Get Finnly token from environment variable FINNLY_TOKEN.
+    Falls back to SYNC_COOKIE for backwards compatibility.
+    Prints a clear error if not found.
+    """
+    token = os.environ.get("FINNLY_TOKEN", "").strip()
+    if not token:
+        # Also try SYNC_COOKIE (set by SyncHub when cookie is updated via dashboard)
+        token = os.environ.get("SYNC_COOKIE", "").strip()
+    if not token:
+        print()
+        print("=" * 60)
+        print("ERROR: FINNLY_TOKEN environment variable is not set.")
+        print("To fix:")
+        print("  1. Go to SyncHub dashboard")
+        print("  2. Click 🔑 Token on Honey Barry Arena")
+        print("  3. Paste the Bearer token from Finnly DevTools")
+        print("     (Authorization header from calendarschedule request)")
+        print("=" * 60)
+        sys.exit(1)
+    # Ensure it starts with "Bearer "
+    if not token.startswith("Bearer "):
+        token = f"Bearer {token}"
+    return token
+
+
 # ── Fetch from Finnly Sport API ────────────────────────────────────────────────
 
-def fetch_events(
-    start_date: datetime.date,
-    end_date: datetime.date,
-    token: str,
-) -> list:
-    """
-    POST to calendarschedule endpoint.
-    Returns list of event objects.
-    """
+def fetch_events(start_date: datetime.date, end_date: datetime.date, token: str) -> list:
     start_str = start_date.strftime("%Y-%m-%dT00:00:00")
     end_str   = end_date.strftime("%Y-%m-%dT00:00:00")
 
@@ -122,7 +96,6 @@ def fetch_events(
 
     resp = requests.post(API_URL, json=payload, headers=headers, timeout=30)
 
-    # Detect auth failure — prompt to renew token
     if resp.status_code in (401, 403):
         print()
         print("=" * 60)
@@ -132,7 +105,8 @@ def fetch_events(
         print("  2. Login with localloginformaint.e.na.n.c.e1.99.40@gmail.com")
         print("  3. Open Facility Management → Calendar (old)")
         print("  4. DevTools → Network → search 'calendarschedule'")
-        print("  5. Copy the Authorization header → update finnly_token in config.json")
+        print("  5. Copy the Authorization header value")
+        print("  6. In SyncHub dashboard → 🔑 Token on Honey Barry Arena → paste")
         print("=" * 60)
         sys.exit(1)
 
@@ -155,8 +129,6 @@ def fetch_events(
 # ── Transform ──────────────────────────────────────────────────────────────────
 
 def _parse_iso(dt_str: str) -> datetime.datetime:
-    """Parse ISO 8601 datetime string returned by the API."""
-    # e.g. "2026-05-13T08:30:00" or "2026-05-13T08:30:00.000Z"
     dt_str = dt_str.rstrip("Z")
     for fmt in ("%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M"):
         try:
@@ -166,15 +138,7 @@ def _parse_iso(dt_str: str) -> datetime.datetime:
     raise ValueError(f"Cannot parse datetime: {dt_str!r}")
 
 
-def transform(events: list) -> list[dict]:
-    """
-    Convert API event objects to output rows.
-
-    Fields used: eventStartTime, eventEndTime, facilityId
-    The App Script adds 10 minutes to endTime — replicated here.
-    Output date format: MM/dd/yyyy  (matches expected CSV)
-    Output time format: hh:mm:ss AM/PM
-    """
+def transform(events: list) -> list:
     rows = []
     for item in events:
         try:
@@ -202,10 +166,11 @@ def transform(events: list) -> list[dict]:
 
 # ── Save CSV ───────────────────────────────────────────────────────────────────
 
-def save_csv(rows: list[dict], output_path: str = None) -> str:
+def save_csv(rows: list, output_path: str = None) -> str:
     if not output_path:
         ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_path = f"honey_barry_arena_{ts}.csv"
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        output_path = os.path.join(script_dir, f"honey_barry_arena_{ts}.csv")
 
     with open(output_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=["Date", "StartTime", "EndTime", "Court"])
@@ -221,17 +186,19 @@ def save_csv(rows: list[dict], output_path: str = None) -> str:
 # ── CatchCorner upload ─────────────────────────────────────────────────────────
 
 def login_cc_corporate(username: str, password: str, access_from: str) -> str:
-    login_url = "https://www.catchcorner.com/api/shared/authentication/Login"
     headers = {
         "Accept": "application/json, text/plain, */*",
         "Content-Type": "application/json",
         "Origin": "https://cc-stage-corporate.azurewebsites.net",
         "Referer": "https://cc-stage-corporate.azurewebsites.net/",
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
         "x-cc-platform": "1",
     }
     data = {"accessFrom": access_from, "email": username, "loginPlatform": 1, "password": password}
-    res = requests.Session().post(login_url, json=data, headers=headers, timeout=15)
+    res = requests.Session().post(
+        "https://www.catchcorner.com/api/shared/authentication/Login",
+        json=data, headers=headers, timeout=15
+    )
     res.raise_for_status()
     token = res.json().get("access_token")
     if not token:
@@ -241,19 +208,18 @@ def login_cc_corporate(username: str, password: str, access_from: str) -> str:
 
 
 def upload_csv_corporate_api(access_token: str, corporate_id: str, csv_path: str):
-    file_upload_url = "https://www.catchcorner.com/api/back-office-shared/csvdump/dump/upload/0"
     headers = {
         "Accept": "application/json, text/plain, */*",
         "Origin": "https://cc-stage-corporate.azurewebsites.net",
         "Referer": "https://cc-stage-corporate.azurewebsites.net/",
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
         "x-cc-platform": "1",
         "Authorization": f"Bearer {access_token}",
     }
     with open(csv_path, "rb") as f:
         files = {"file": (os.path.basename(csv_path), f, "multipart/form-data")}
         resp = requests.Session().post(
-            f"{file_upload_url}/{corporate_id}/0",
+            f"https://www.catchcorner.com/api/back-office-shared/csvdump/dump/upload/0/{corporate_id}/0",
             files=files, headers=headers, timeout=60,
         )
     if not resp.ok:
@@ -275,10 +241,13 @@ def upload_to_catchcorner(csv_path: str):
 def main():
     parser = argparse.ArgumentParser(description="Honey Barry Arena sync")
     parser.add_argument("--start", help="Start date YYYY-MM-DD (default: today)")
-    parser.add_argument("--end",   help="End date YYYY-MM-DD (default: today + sync_days)")
+    parser.add_argument("--end",   help="End date YYYY-MM-DD (default: today + 60 days)")
     parser.add_argument("--output-file", help="Output CSV path (optional)")
     parser.add_argument("--no-upload", action="store_true", help="Skip CatchCorner upload")
     args = parser.parse_args()
+
+    # Get token from environment
+    finnly_token = get_finnly_token()
 
     today      = datetime.date.today()
     start_date = datetime.date.fromisoformat(args.start) if args.start else today
@@ -289,25 +258,21 @@ def main():
     print(f"  Range: {start_date} → {end_date} ({(end_date - start_date).days + 1} days)")
     print("=" * 55)
 
-    # Step 1: Fetch
     print("\n[1] Fetching data from Finnly Sport API...")
-    events = fetch_events(start_date, end_date, FINNLY_TOKEN)
+    events = fetch_events(start_date, end_date, finnly_token)
     print(f"      Got {len(events)} events from API.")
 
     if not events:
         print("WARNING: No events returned. Check the token and date range.")
         sys.exit(0)
 
-    # Step 2: Transform
     print("\n[2] Transforming data...")
     rows = transform(events)
     print(f"      {len(rows)} booking rows produced.")
 
-    # Step 3: Save CSV
     print("\n[3] Saving CSV...")
     csv_path = save_csv(rows, args.output_file)
 
-    # Step 4/5: Upload
     if not args.no_upload:
         upload_to_catchcorner(csv_path)
 
