@@ -21,7 +21,7 @@ COPY backend ./backend
 # Copy frontend built files
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
-EXPOSE 5000
+EXPOSE 8080
 
-# Ejecutar uvicorn directamente sin pasar PORT
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "5000"]
+# Ejecutar uvicorn que lea $PORT de Railway
+CMD exec uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8080}
