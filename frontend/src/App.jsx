@@ -68,6 +68,30 @@ function fmtBytes(b) {
   return `${(b / 1048576).toFixed(1)} MB`
 }
 
+function CookieBadge({ ageHours, updatedAt }) {
+  const status = cookieStatus(ageHours)
+  const colors = {
+    ok:      { bg: "#F0FDF4", color: "#15803D", border: "#BBF7D0" },
+    warning: { bg: "#FFFBEB", color: "#B45309", border: "#FDE68A" },
+    expired: { bg: "#FEF2F2", color: "#DC2626", border: "#FECACA" },
+    unknown: { bg: "#F9FAFB", color: "#9CA3AF", border: "#E5E7EB" },
+  }
+  const c = colors[status] || colors.unknown
+  const label = status === "ok"
+    ? `Cookie OK · ${timeAgo(updatedAt)}`
+    : status === "warning"
+    ? `Cookie pronto · ${timeAgo(updatedAt)}`
+    : status === "expired"
+    ? `Cookie expirada · ${timeAgo(updatedAt)}`
+    : "Sin cookie"
+
+  return (
+    <span style={{ background: c.bg, color: c.color, border: `1px solid ${c.border}`, fontSize: 10, padding: "2px 7px", borderRadius: 4, fontWeight: 500, whiteSpace: "nowrap" }}>
+      🍪 {label}
+    </span>
+  )
+}
+
 function CookieModal({ fac_id, facility, onClose, onSaved }) {
   const [value, setValue] = useState("")
   const [saving, setSaving] = useState(false)
@@ -86,11 +110,20 @@ function CookieModal({ fac_id, facility, onClose, onSaved }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
           <div>
             <div style={{ fontSize: 15, fontWeight: 600 }}>{facility?.name}</div>
-            <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2 }}>{isToken ? "Actualizá el Bearer token de Finnly" : "Pegá la cookie de sesión de Mindbody"}</div>
+            <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2 }}>
+              {isToken ? "Actualizá el Bearer token de Finnly" : "Pegá la cookie de sesión de Mindbody"}
+            </div>
+            {facility?.cookie_age_hours !== null && facility?.cookie_age_hours !== undefined && (
+              <div style={{ marginTop: 6 }}>
+                <CookieBadge ageHours={facility.cookie_age_hours} updatedAt={facility.cookie_updated_at} />
+              </div>
+            )}
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", fontSize: 18 }}>✕</button>
         </div>
-        <div style={{ fontSize: 11, fontWeight: 500, color: "#6B7280", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>{isToken ? "Bearer token" : "Cookie string"}</div>
+        <div style={{ fontSize: 11, fontWeight: 500, color: "#6B7280", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          {isToken ? "Bearer token" : "Cookie string"}
+        </div>
         <textarea autoFocus value={value} onChange={e => setValue(e.target.value)}
           placeholder={isToken ? "Bearer eyJhbGci..." : "ASP.NET_SessionId=...; __cf_bm=..."}
           style={{ width: "100%", height: 100, fontSize: 11, fontFamily: "monospace", border: "1px solid #D1D5DB", borderRadius: 8, padding: "10px 12px", resize: "none", boxSizing: "border-box", outline: "none", background: "#F9FAFB" }} />
@@ -139,7 +172,7 @@ function LogModal({ logId, facilityName, onClose }) {
             <span style={{ fontSize: 11, color: "#94A3B8" }}>{log.started_at ? new Date(log.started_at + "Z").toLocaleString("es-AR", { hour12: false }) : "—"}</span>
           </div>
         )}
-        <pre style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", overflow: "auto", flex: 1, margin: 0, padding: "16px 20px", whiteSpace: "pre-wrap", wordBreak: "break-all", color: "#CBD5E1", lineHeight: 1.7 }}>
+        <pre style={{ fontSize: 11, fontFamily: "monospace", overflow: "auto", flex: 1, margin: 0, padding: "16px 20px", whiteSpace: "pre-wrap", wordBreak: "break-all", color: "#CBD5E1", lineHeight: 1.7 }}>
           {log?.log_output || "Cargando..."}
         </pre>
       </div>
@@ -151,7 +184,7 @@ function Confirm({ message, onConfirm, onCancel }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000 }}>
       <div style={{ background: "#fff", borderRadius: 12, padding: 24, width: 360, boxShadow: "0 10px 40px rgba(0,0,0,0.15)" }}>
-        <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 20, color: "#111827" }}>{message}</div>
+        <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 20 }}>{message}</div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button onClick={onCancel} style={{ border: "1px solid #D1D5DB", background: "#fff", borderRadius: 8, padding: "7px 16px", fontSize: 13, cursor: "pointer" }}>Cancelar</button>
           <button onClick={onConfirm} style={{ background: "#DC2626", color: "#fff", border: "none", borderRadius: 8, padding: "7px 16px", fontSize: 13, cursor: "pointer", fontWeight: 500 }}>Eliminar</button>
@@ -163,30 +196,58 @@ function Confirm({ message, onConfirm, onCancel }) {
 
 function FacilityRow({ fac_id, fac, done, onCookieClick, onRun, onLogClick }) {
   const status = getFacilityStatus(fac)
+  const ckStatus = fac.has_cookie ? cookieStatus(fac.cookie_age_hours) : null
+  const showCookieWarning = ckStatus === "expired" || ckStatus === "warning"
+
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "2fr 100px 130px 140px 160px 110px", alignItems: "center", padding: "10px 16px", borderBottom: "1px solid #F3F4F6", background: done ? "#FAFBFC" : "#fff" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: status === "ok" ? "#22C55E" : status === "running" ? "#3B82F6" : status === "warning" ? "#F59E0B" : status === "expired" || status === "error" ? "#EF4444" : "#D1D5DB", animation: status === "running" ? "pulse 1.5s infinite" : "none" }} />
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 500, color: done ? "#6B7280" : "#111827" }}>{fac.name}</div>
-          <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 1 }}>{fac.schedules?.length ? `${fac.schedules.length}× al día` : "Sin schedule"}</div>
+    <div style={{ borderBottom: "1px solid #F3F4F6", background: done ? "#FAFBFC" : "#fff" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 90px 110px 130px 160px 100px", alignItems: "center", padding: "10px 16px" }}>
+        {/* Name */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: status === "ok" ? "#22C55E" : status === "running" ? "#3B82F6" : status === "warning" ? "#F59E0B" : status === "expired" || status === "error" ? "#EF4444" : "#D1D5DB", animation: status === "running" ? "pulse 1.5s infinite" : "none" }} />
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: done ? "#6B7280" : "#111827" }}>{fac.name}</div>
+            <div style={{ display: "flex", gap: 6, marginTop: 3, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 10, color: "#9CA3AF" }}>{fac.schedules?.length ? `${fac.schedules.length}× día` : "Sin schedule"}</span>
+              {fac.has_cookie && (
+                <CookieBadge ageHours={fac.cookie_age_hours} updatedAt={fac.cookie_updated_at} />
+              )}
+            </div>
+          </div>
         </div>
-      </div>
-      <div><PlatBadge platform={fac.platform} /></div>
-      <div style={{ fontSize: 12, color: "#6B7280" }}>
-        {fac.last_sync ? <span title={fac.last_sync.started_at}>{timeAgo(fac.last_sync.started_at)}{fac.last_sync.rows != null && <span style={{ color: "#9CA3AF" }}> · {fac.last_sync.rows.toLocaleString()}</span>}</span> : <span style={{ color: "#D1D5DB" }}>Nunca</span>}
-      </div>
-      <div><Badge status={status} /></div>
-      <div style={{ display: "flex", gap: 6 }}>
-        <button onClick={() => onRun(fac_id)} disabled={fac.running} style={{ background: fac.running ? "#EEF2FF" : done ? "#F0FDF4" : "#4F46E5", color: fac.running ? "#818CF8" : done ? "#15803D" : "#fff", border: fac.running ? "1px solid #C7D2FE" : done ? "1px solid #BBF7D0" : "none", borderRadius: 7, padding: "5px 12px", fontSize: 11, cursor: fac.running ? "not-allowed" : "pointer", fontWeight: 500 }}>
-          {fac.running ? "↻ Corriendo" : done ? "↻ Re-run" : "▶ Run"}
-        </button>
-        <button onClick={() => onCookieClick(fac_id)} style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 7, padding: "5px 8px", fontSize: 11, cursor: "pointer", color: "#6B7280" }}>
-          {fac.platform === "finnly" ? "🔑" : "🍪"}
-        </button>
-      </div>
-      <div>
-        {fac.last_sync && <button onClick={() => onLogClick(fac.last_sync?.id || null, fac.name)} style={{ background: "none", border: "1px solid #E5E7EB", borderRadius: 7, padding: "5px 10px", fontSize: 11, cursor: "pointer", color: "#6B7280" }}>Ver log</button>}
+
+        <div><PlatBadge platform={fac.platform} /></div>
+
+        <div style={{ fontSize: 12, color: "#6B7280" }}>
+          {fac.last_sync
+            ? <span>{timeAgo(fac.last_sync.started_at)}{fac.last_sync.rows != null && <span style={{ color: "#9CA3AF" }}> · {fac.last_sync.rows.toLocaleString()}</span>}</span>
+            : <span style={{ color: "#D1D5DB" }}>Nunca</span>}
+        </div>
+
+        <div><Badge status={status} /></div>
+
+        <div style={{ display: "flex", gap: 6 }}>
+          <button onClick={() => onRun(fac_id)} disabled={fac.running} style={{
+            background: fac.running ? "#EEF2FF" : done ? "#F0FDF4" : "#4F46E5",
+            color: fac.running ? "#818CF8" : done ? "#15803D" : "#fff",
+            border: fac.running ? "1px solid #C7D2FE" : done ? "1px solid #BBF7D0" : "none",
+            borderRadius: 7, padding: "5px 12px", fontSize: 11, cursor: fac.running ? "not-allowed" : "pointer", fontWeight: 500
+          }}>
+            {fac.running ? "↻ Corriendo" : done ? "↻ Re-run" : "▶ Run"}
+          </button>
+          <button onClick={() => onCookieClick(fac_id)} style={{
+            background: showCookieWarning ? "#FEF2F2" : "#F9FAFB",
+            border: showCookieWarning ? "1px solid #FECACA" : "1px solid #E5E7EB",
+            borderRadius: 7, padding: "5px 8px", fontSize: 11, cursor: "pointer",
+            color: showCookieWarning ? "#DC2626" : "#6B7280"
+          }}>
+            {fac.platform === "finnly" ? "🔑" : "🍪"}
+          </button>
+        </div>
+
+        <div>
+          {fac.last_sync && <button onClick={() => onLogClick(fac.last_sync?.id, fac.name)} style={{ background: "none", border: "1px solid #E5E7EB", borderRadius: 7, padding: "5px 10px", fontSize: 11, cursor: "pointer", color: "#6B7280" }}>Ver log</button>}
+        </div>
       </div>
     </div>
   )
@@ -253,19 +314,14 @@ export default function App() {
   async function deleteAllLogs(fid) { await fetch(`${API}/api/logs${fid ? `?facility_id=${fid}` : ""}`, { method: "DELETE", headers: H }); fetchLogs() }
   async function deleteCsv(id) { await fetch(`${API}/api/csvs/${id}`, { method: "DELETE", headers: H }); fetchCsvs() }
   async function deleteAllCsvs(fid) { await fetch(`${API}/api/csvs${fid ? `?facility_id=${fid}` : ""}`, { method: "DELETE", headers: H }); fetchCsvs() }
-
-  function downloadCsv(csv_id, filename) {
-    const a = document.createElement("a")
-    a.href = `${API}/api/csvs/${csv_id}/download?key=${API_KEY}`
-    a.download = filename; a.click()
-  }
+  function downloadCsv(id, filename) { const a = document.createElement("a"); a.href = `${API}/api/csvs/${id}/download?key=${API_KEY}`; a.download = filename; a.click() }
 
   const facList = Object.entries(facilities)
   const today = new Date().toISOString().slice(0, 10)
   const totalToday = logs.filter(l => l.started_at?.startsWith(today)).length
   const totalRows = logs.filter(l => l.rows).reduce((s, l) => s + (l.rows || 0), 0)
   const errorCount = logs.filter(l => l.status === "error" || l.status === "cookie_error").length
-  const cookieAlerts = facList.filter(([, f]) => f.has_cookie && cookieStatus(f.cookie_age_hours) !== "ok").length
+  const cookieAlerts = facList.filter(([, f]) => f.has_cookie && ["expired", "warning"].includes(cookieStatus(f.cookie_age_hours))).length
 
   const sortedFacs = [...facList].sort(([, a], [, b]) => {
     const p = s => s === "running" ? 0 : s === "expired" || s === "error" ? 1 : s === "warning" ? 2 : s === "unknown" ? 3 : 4
@@ -274,6 +330,7 @@ export default function App() {
 
   const pendingFacs = sortedFacs.filter(([, f]) => { const s = getFacilityStatus(f); return s !== "ok" || !f.last_sync?.started_at?.startsWith(today) })
   const doneFacs = sortedFacs.filter(([, f]) => getFacilityStatus(f) === "ok" && f.last_sync?.started_at?.startsWith(today))
+
   const filteredLogs = logs.filter(l => {
     if (filterFac && l.facility_id !== filterFac) return false
     if (filterStatus === "error" && l.status !== "error" && l.status !== "cookie_error") return false
@@ -282,10 +339,6 @@ export default function App() {
   })
   const filteredCsvs = filterFac ? csvs.filter(c => c.facility_id === filterFac) : csvs
   const sidebarFacs = sortedFacs.map(([id, f]) => ({ id, f, status: getFacilityStatus(f) }))
-
-  const btn = (text, onClick, style = {}) => (
-    <button onClick={onClick} style={{ borderRadius: 8, padding: "7px 14px", fontSize: 12, cursor: "pointer", border: "1px solid #E5E7EB", background: "#fff", color: "#374151", ...style }}>{text}</button>
-  )
 
   return (
     <>
@@ -312,13 +365,13 @@ export default function App() {
           <div style={{ padding: "10px 8px" }}>
             {[
               { id: "dashboard", label: "Dashboard", icon: "⊞" },
-              { id: "logs", label: "Historial", icon: "☰", badge: errorCount > 0 ? errorCount : null, badgeColor: "#DC2626", badgeBg: "#FEF2F2" },
-              { id: "csvs", label: "CSVs", icon: "📄", badge: csvs.length > 0 ? csvs.length : null, badgeColor: "#4F46E5", badgeBg: "#EEF2FF" },
+              { id: "logs", label: "Historial", icon: "☰", badge: errorCount > 0 ? errorCount : null, bc: "#DC2626", bb: "#FEF2F2" },
+              { id: "csvs", label: "CSVs", icon: "📄", badge: csvs.length > 0 ? csvs.length : null, bc: "#4F46E5", bb: "#EEF2FF" },
             ].map(item => (
               <div key={item.id} onClick={() => setView(item.id)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 8, fontSize: 13, cursor: "pointer", background: view === item.id ? "#EEF2FF" : "transparent", color: view === item.id ? "#4F46E5" : "#6B7280", fontWeight: view === item.id ? 600 : 400, marginBottom: 2 }}>
                 <span>{item.icon}</span>
                 <span style={{ flex: 1 }}>{item.label}</span>
-                {item.badge && <span style={{ background: item.badgeBg, color: item.badgeColor, fontSize: 10, padding: "1px 6px", borderRadius: 10, fontWeight: 600 }}>{item.badge}</span>}
+                {item.badge && <span style={{ background: item.bb, color: item.bc, fontSize: 10, padding: "1px 6px", borderRadius: 10, fontWeight: 600 }}>{item.badge}</span>}
               </div>
             ))}
           </div>
@@ -329,6 +382,9 @@ export default function App() {
               <div key={id} onClick={() => { setFilterFac(filterFac === id ? null : id); setView("logs") }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 8, fontSize: 12, cursor: "pointer", background: filterFac === id && view === "logs" ? "#EEF2FF" : "transparent", color: filterFac === id && view === "logs" ? "#4F46E5" : "#374151", marginBottom: 1 }}>
                 <div style={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, background: status === "ok" ? "#22C55E" : status === "running" ? "#3B82F6" : status === "warning" ? "#F59E0B" : status === "expired" || status === "error" ? "#EF4444" : "#D1D5DB" }} />
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{f.name}</span>
+                {f.has_cookie && cookieStatus(f.cookie_age_hours) === "expired" && (
+                  <span style={{ fontSize: 9, background: "#FEF2F2", color: "#DC2626", padding: "1px 4px", borderRadius: 4, fontWeight: 600 }}>!</span>
+                )}
               </div>
             ))}
           </div>
@@ -338,7 +394,12 @@ export default function App() {
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22C55E", display: "inline-block" }} /> Activo · cada 15s
             </div>
             <div style={{ fontSize: 10, color: "#A5B4FC", marginTop: 4 }}>⏱ 8am, 10:30, 1pm, 3:30pm Miami</div>
-            {cookieAlerts > 0 && <div style={{ fontSize: 11, color: "#DC2626", marginTop: 6, fontWeight: 500 }}>⚠ {cookieAlerts} cookie{cookieAlerts > 1 ? "s" : ""} por renovar</div>}
+            {cookieAlerts > 0 && (
+              <div style={{ fontSize: 11, color: "#DC2626", marginTop: 6, fontWeight: 500, background: "#FEF2F2", padding: "4px 8px", borderRadius: 6 }}>
+                ⚠ {cookieAlerts} cookie{cookieAlerts > 1 ? "s" : ""} por renovar
+                <div style={{ fontSize: 10, color: "#9CA3AF", marginTop: 2, fontWeight: 400 }}>Corré cookie_refresher.py</div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -361,7 +422,7 @@ export default function App() {
                     { label: "Syncs hoy", value: totalToday, icon: "↻" },
                     { label: "Filas procesadas", value: totalRows.toLocaleString(), icon: "⊞" },
                     { label: "Facilities activas", value: facList.length, icon: "◎" },
-                    { label: "Errores recientes", value: errorCount, icon: "⚠", warn: errorCount > 0 },
+                    { label: "Cookies por renovar", value: cookieAlerts, icon: "🍪", warn: cookieAlerts > 0 },
                   ].map((m, i) => (
                     <div key={i} style={{ background: "#fff", borderRadius: 12, padding: "16px 18px", border: m.warn ? "1px solid #FECACA" : "1px solid #F3F4F6", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
                       <div style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 500, marginBottom: 8 }}>{m.icon} {m.label}</div>
@@ -370,8 +431,8 @@ export default function App() {
                   ))}
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "2fr 100px 130px 140px 160px 110px", padding: "8px 16px", marginBottom: 4 }}>
-                  {["Facility", "Plataforma", "Último sync", "Estado", "Acciones", "Log"].map(h => (
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 90px 110px 130px 160px 100px", padding: "8px 16px", marginBottom: 4 }}>
+                  {["Facility", "Plat.", "Último sync", "Estado", "Acciones", "Log"].map(h => (
                     <div key={h} style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</div>
                   ))}
                 </div>
@@ -407,7 +468,7 @@ export default function App() {
                   ))}
                   <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
                     <span style={{ fontSize: 12, color: "#9CA3AF" }}>{filteredLogs.length} registros</span>
-                    <button onClick={() => setConfirm({ message: filterFac ? `¿Borrar todos los logs de ${facilities[filterFac]?.name}?` : "¿Borrar TODOS los logs?", onConfirm: () => { deleteAllLogs(filterFac); setConfirm(null) } })} style={{ border: "1px solid #FECACA", background: "#FEF2F2", color: "#DC2626", borderRadius: 8, padding: "6px 12px", fontSize: 12, cursor: "pointer" }}>
+                    <button onClick={() => setConfirm({ message: filterFac ? `¿Borrar logs de ${facilities[filterFac]?.name}?` : "¿Borrar TODOS los logs?", onConfirm: () => { deleteAllLogs(filterFac); setConfirm(null) } })} style={{ border: "1px solid #FECACA", background: "#FEF2F2", color: "#DC2626", borderRadius: 8, padding: "6px 12px", fontSize: 12, cursor: "pointer" }}>
                       🗑 Borrar {filterFac ? "estos" : "todos"}
                     </button>
                   </div>
@@ -429,12 +490,12 @@ export default function App() {
                         <div style={{ fontSize: 11, color: "#6B7280" }}>{time}</div>
                         <div style={{ fontSize: 12, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fac?.name || log.facility_id}</div>
                         <div><PlatBadge platform={fac?.platform} /></div>
-                        <div style={{ fontSize: 12, color: "#374151" }}>{log.rows?.toLocaleString() ?? "—"}</div>
+                        <div style={{ fontSize: 12 }}>{log.rows?.toLocaleString() ?? "—"}</div>
                         <div style={{ fontSize: 12, color: "#6B7280" }}>{dur}</div>
                         <div style={{ fontSize: 11, color: "#9CA3AF" }}>{log.trigger || "manual"}</div>
                         <div><Badge status={log.status} /></div>
                         <div style={{ display: "flex", gap: 5 }}>
-                          {log.log_output && <button onClick={() => setLogModal({ id: log.id, name: fac?.name })} style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer", color: "#374151" }}>Log</button>}
+                          {log.log_output && <button onClick={() => setLogModal({ id: log.id, name: fac?.name })} style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>Log</button>}
                           <button onClick={() => setConfirm({ message: "¿Borrar este log?", onConfirm: () => { deleteLog(log.id); setConfirm(null) } })} style={{ background: "none", border: "1px solid #FECACA", borderRadius: 6, padding: "3px 7px", fontSize: 11, cursor: "pointer", color: "#DC2626" }}>🗑</button>
                         </div>
                       </div>
@@ -453,18 +514,17 @@ export default function App() {
                     {facList.map(([id, f]) => <option key={id} value={id}>{f.name}</option>)}
                   </select>
                   <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-                    <span style={{ fontSize: 12, color: "#9CA3AF" }}>{filteredCsvs.length} archivos · auto-borrado a las 11pm</span>
-                    <button onClick={() => setConfirm({ message: filterFac ? `¿Borrar todos los CSVs de ${facilities[filterFac]?.name}?` : "¿Borrar TODOS los CSVs?", onConfirm: () => { deleteAllCsvs(filterFac); setConfirm(null) } })} style={{ border: "1px solid #FECACA", background: "#FEF2F2", color: "#DC2626", borderRadius: 8, padding: "6px 12px", fontSize: 12, cursor: "pointer" }}>
+                    <span style={{ fontSize: 12, color: "#9CA3AF" }}>{filteredCsvs.length} archivos · auto-borrado 11pm</span>
+                    <button onClick={() => setConfirm({ message: filterFac ? `¿Borrar CSVs de ${facilities[filterFac]?.name}?` : "¿Borrar TODOS los CSVs?", onConfirm: () => { deleteAllCsvs(filterFac); setConfirm(null) } })} style={{ border: "1px solid #FECACA", background: "#FEF2F2", color: "#DC2626", borderRadius: 8, padding: "6px 12px", fontSize: 12, cursor: "pointer" }}>
                       🗑 Borrar {filterFac ? "estos" : "todos"}
                     </button>
                   </div>
                 </div>
-
                 {filteredCsvs.length === 0 ? (
                   <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #F3F4F6", padding: 60, textAlign: "center" }}>
                     <div style={{ fontSize: 32, marginBottom: 12 }}>📄</div>
-                    <div style={{ fontSize: 14, fontWeight: 500, color: "#374151", marginBottom: 6 }}>No hay CSVs todavía</div>
-                    <div style={{ fontSize: 13, color: "#9CA3AF" }}>Los CSVs se guardan automáticamente al completar cada sync exitoso</div>
+                    <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6 }}>No hay CSVs todavía</div>
+                    <div style={{ fontSize: 13, color: "#9CA3AF" }}>Se guardan automáticamente al completar cada sync exitoso</div>
                   </div>
                 ) : (
                   <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #F3F4F6", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
@@ -478,9 +538,9 @@ export default function App() {
                       const created = csv.created_at ? new Date(csv.created_at + "Z").toLocaleString("es-AR", { hour12: false }) : "—"
                       return (
                         <div key={csv.id} style={{ display: "grid", gridTemplateColumns: "1fr 120px 80px 80px 160px 180px", padding: "10px 16px", borderBottom: "1px solid #F9FAFB", alignItems: "center" }}>
-                          <div style={{ fontSize: 11, fontWeight: 500, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "monospace" }}>📄 {csv.filename}</div>
+                          <div style={{ fontSize: 11, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "monospace" }}>📄 {csv.filename}</div>
                           <div><PlatBadge platform={fac?.platform} /></div>
-                          <div style={{ fontSize: 12, color: "#374151" }}>{csv.rows?.toLocaleString() ?? "—"}</div>
+                          <div style={{ fontSize: 12 }}>{csv.rows?.toLocaleString() ?? "—"}</div>
                           <div style={{ fontSize: 12, color: "#6B7280" }}>{fmtBytes(csv.size_bytes)}</div>
                           <div style={{ fontSize: 11, color: "#6B7280" }}>{created}</div>
                           <div style={{ display: "flex", gap: 6 }}>

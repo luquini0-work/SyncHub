@@ -153,6 +153,11 @@ def set_cookie(fac_id: str, value: str):
         )
         db.commit()
 
+def _cookie_updated_at(fac_id: str) -> Optional[str]:
+    with get_db() as db:
+        row = db.execute("SELECT updated_at FROM cookies WHERE facility_id=?", (fac_id,)).fetchone()
+    return row["updated_at"] if row else None
+
 def cookie_age_hours(fac_id: str) -> Optional[float]:
     with get_db() as db:
         row = db.execute("SELECT updated_at FROM cookies WHERE facility_id=?", (fac_id,)).fetchone()
@@ -317,6 +322,7 @@ def get_facilities():
             **fac,
             "cookie_age_hours": cookie_age_hours(fac_id) if fac.get("has_cookie") else None,
             "has_cookie_stored": get_cookie(fac_id) is not None,
+            "cookie_updated_at": _cookie_updated_at(fac_id) if fac.get("has_cookie") else None,
             "last_sync": dict(last) if last else None,
         }
     return result
