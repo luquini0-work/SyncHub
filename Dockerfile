@@ -11,9 +11,6 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install Node.js runtime (no es necesario instalar npm nuevamente)
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
-
 # Copy Python dependencies
 COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
@@ -26,5 +23,5 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 EXPOSE 5000
 
-# Usar gunicorn para ejecutar la app
-CMD ["python", "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "5000"]
+# Ejecutar uvicorn directamente sin pasar PORT
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "5000"]

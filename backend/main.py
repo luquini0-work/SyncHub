@@ -4,7 +4,14 @@ Las credenciales vienen SOLO de variables de entorno (Railway → Variables).
 Los scripts reciben las credenciales via env vars, no via archivos.
 """
 
-import os, json, subprocess, threading, datetime, sqlite3, asyncio
+import os
+import json
+import subprocess
+import threading
+import datetime
+import sqlite3
+import asyncio
+import re
 from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Optional
@@ -222,7 +229,6 @@ def run_sync_blocking(fac_id: str, fac: dict, trigger: str = "manual") -> int:
 
     # Detect rows
     rows = None
-    import re
     for line in reversed(output_lines):
         m = re.search(r"(\d[\d,]*)\s+rows", line.replace(",", ""))
         if m:
@@ -396,10 +402,3 @@ if frontend_dist.exists():
     @app.get("/{full_path:path}")
     def serve_spa(full_path: str):
         return FileResponse(str(frontend_dist / "index.html"))
-
-# ── Run server ─────────────────────────────────────────────────────────
-
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 5000))
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
