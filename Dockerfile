@@ -21,8 +21,11 @@ COPY backend ./backend
 # Copy frontend built files
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
+# Copy entrypoint script
+COPY entrypoint.sh /app/
+RUN chmod +x /app/entrypoint.sh
+
 EXPOSE 8080
 
-# Usar shell script para que se expanda $PORT correctamente
-SHELL ["/bin/sh", "-c"]
-CMD uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8080}
+# Ejecutar el script
+ENTRYPOINT ["/app/entrypoint.sh"]
