@@ -23,5 +23,6 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 EXPOSE 8080
 
-# Ejecutar uvicorn que lea $PORT de Railway
-CMD exec uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8080}
+# Usar shell script para que se expanda $PORT correctamente
+SHELL ["/bin/sh", "-c"]
+CMD uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8080}
