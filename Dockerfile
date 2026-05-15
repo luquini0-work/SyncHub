@@ -23,5 +23,5 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 EXPOSE 8080
 
-# Ejecutar main.py directamente (que lee PORT en Python)
+# Ejecutar main.py directamente
 CMD ["python", "backend/main.py"]
