@@ -126,7 +126,101 @@ DEFAULT_FACILITIES = {
         "script": "breakaway_sync.py", "has_cookie": False,
         "cc_facility": "2284", "schedules": MIAMI_SCHEDULES, "enabled": True,
     },
+        # ── No cookie needed ──────────────────────────────────────
+    "ctx_fieldhouse": {
+        "name": "CTX Fieldhouse", "platform": "rectimes",
+        "script": "ctx_fieldhouse_sync.py", "has_cookie": False,
+        "cc_facility": "SET_CC_FAC", "schedules": MIAMI_SCHEDULES, "enabled": True,
+    },
+    "opencourt_fieldhouse": {
+        "name": "OpenCourt - The Fieldhouse", "platform": "opencourt",
+        "script": "opencourt_sync.py", "script_args": ["fieldhouse"], "has_cookie": False,
+        "cc_facility": "SET_CC_FAC", "schedules": MIAMI_SCHEDULES, "enabled": True,
+    },
+    "capital_city_barton": {
+        "name": "Capital City Pickleball - Barton Rooftop", "platform": "opencourt",
+        "script": "opencourt_sync.py", "script_args": ["barton"], "has_cookie": False,
+        "cc_facility": "SET_CC_FAC", "schedules": MIAMI_SCHEDULES, "enabled": True,
+    },
+    "capital_city_downtown": {
+        "name": "Capital City Pickleball - Downtown", "platform": "opencourt",
+        "script": "opencourt_sync.py", "script_args": ["downtown"], "has_cookie": False,
+        "cc_facility": "SET_CC_FAC", "schedules": MIAMI_SCHEDULES, "enabled": True,
+    },
+    "brandeis_athletic": {
+        "name": "Brandeis Athletic", "platform": "dserec",
+        "script": "brandeis_sync.py", "has_cookie": False,
+        "cc_facility": "SET_CC_FAC", "schedules": MIAMI_SCHEDULES, "enabled": True,
+    },
+    "crestwood_pickleball": {
+        "name": "Crestwood Pickleball", "platform": "crestwood",
+        "script": "crestwood_sync.py", "has_cookie": False,
+        "cc_facility": "SET_CC_FAC", "schedules": MIAMI_SCHEDULES, "enabled": True,
+    },
+    "six_iron": {
+        "name": "6ix Iron", "platform": "albaplay",
+        "script": "six_iron_sync.py", "has_cookie": False,
+        "cc_facility": "SET_CC_FAC", "schedules": MIAMI_SCHEDULES, "enabled": True,
+    },
+    "western_fair": {
+        "name": "Western Fair", "platform": "finnly",
+        "script": "western_fair_sync.py", "has_cookie": False,
+        "cc_facility": "572", "schedules": MIAMI_SCHEDULES, "enabled": True,
+    },
+    "usports": {
+        "name": "USports", "platform": "calengoo",
+        "script": "usports_sync.py", "has_cookie": False,
+        "cc_facility": "SET_CC_FAC", "schedules": MIAMI_SCHEDULES, "enabled": True,
+    },
+    "jump_shot_gym": {
+        "name": "Jump Shot Gym", "platform": "acuity",
+        "script": "jump_shot_gym_sync.py", "has_cookie": False,
+        "cc_facility": "SET_CC_FAC", "schedules": MIAMI_SCHEDULES, "enabled": True,
+    },
+
+    # ── Token/Cookie (manual update via SyncHub 🍪) ───────────
+    "dbat": {
+        "name": "D-BAT", "platform": "upperhand",
+        "script": "dbat_sync.py", "has_cookie": True,
+        "cc_facility": "SET_CC_FAC", "schedules": MIAMI_SCHEDULES, "enabled": True,
+    },
+    "neon_energy": {
+        "name": "Neon Energy Sports", "platform": "upperhand",
+        "script": "neon_energy_sync.py", "has_cookie": True,
+        "cc_facility": "SET_CC_FAC", "schedules": MIAMI_SCHEDULES, "enabled": True,
+    },
+    "tjs_sports": {
+        "name": "TJ's Sports Club", "platform": "glofox",
+        "script": "tjs_sports_sync.py", "has_cookie": True,
+        "cc_facility": "SET_CC_FAC", "schedules": MIAMI_SCHEDULES, "enabled": True,
+    },
+    "the_st_james": {
+        "name": "The St. James", "platform": "tripleseat",
+        "script": "the_st_james_sync.py", "has_cookie": True,
+        "cc_facility": "SET_CC_FAC", "schedules": MIAMI_SCHEDULES, "enabled": True,
+    },
+    "home_court": {
+        "name": "Home Court", "platform": "gymmaster",
+        "script": "home_court_sync.py", "has_cookie": True,
+        "cc_facility": "SET_CC_FAC", "schedules": MIAMI_SCHEDULES, "enabled": True,
+    },
+    "millworks": {
+        "name": "MillWorks", "platform": "setmore",
+        "script": "millworks_sync.py", "has_cookie": True,
+        "cc_facility": "SET_CC_FAC", "schedules": MIAMI_SCHEDULES, "enabled": True,
+    },
+    "commish_field": {
+        "name": "Commish Field / Soccer Post", "platform": "sportskey",
+        "script": "commish_field_sync.py", "has_cookie": True,
+        "cc_facility": "1591", "schedules": MIAMI_SCHEDULES, "enabled": True,
+    },
+    "christs_haven": {
+        "name": "Christ's Haven", "platform": "perfectvenue",
+        "script": "christs_haven_sync.py", "has_cookie": True,
+        "cc_facility": "SET_CC_FAC", "schedules": MIAMI_SCHEDULES, "enabled": True,
+    },
 }
+
 
 def load_facilities():
     if FAC_CONFIG.exists():
