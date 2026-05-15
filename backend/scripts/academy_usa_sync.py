@@ -16,7 +16,7 @@ Run:
   python academy_usa_sync.py --no-upload
 """
 
-import os, re, csv, sys, io, datetime, argparse, requests, openpyxl
+import os, re, csv, sys, io, datetime, argparse, requests
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -192,25 +192,144 @@ def _fmt_time(s: str) -> str:
         return s
 
 def transform_excel(excel_bytes: bytes) -> list:
-    wb = openpyxl.load_workbook(io.BytesIO(excel_bytes), data_only=True)
+    """Auto-detect XLS vs XLSX and parse accordingly."""
+    # Detect format by magic bytes
+    is_xls  = excel_bytes[:4] == b'\xd0\xcf\x11\xe0'  # OLE2 / Excel 97-2003
+    is_xlsx = excel_bytes[:4] == b'PK\x03\x04'          # ZIP / Excel 2007+
 
-    # Prefer 'Input' sheet
+    if is_xls:
+        return _transform_xls(excel_bytes)
+    elif is_xlsx:
+        return _transform_xlsx(excel_bytes)
+    else:
+        # Try both
+        try:
+            return _transform_xls(excel_bytes)
+        except Exception:
+            return _transform_xlsx(excel_bytes)
+
+
+def _get_col_indices(header_row):
+    """Find column indices from header row values."""
+    row_lower = [str(v).lower().strip() if v else "" for v in header_row]
+    col_date  = row_lower.index("date") if "date" in row_lower else 0
+    col_start = next((j for j, v in enumerate(row_lower) if "start" in v), 1)
+    col_end   = next((j for j, v in enumerate(row_lower) if "end" in v), 2)
+    col_staff = next((j for j, v in enumerate(row_lower) if "staff" in v), 4)
+    col_notes = next((j for j, v in enumerate(row_lower) if "note" in v), 13)
+    return col_date, col_start, col_end, col_staff, col_notes
+
+
+def _transform_xls(excel_bytes: bytes) -> list:
+    """Parse old .xls format using xlrd."""
+    import xlrd
+    wb = xlrd.open_workbook(file_contents=excel_bytes)
+
+    # Find Input sheet
+    sheet = None
+    for name in wb.sheet_names():
+        if name.lower() == "input":
+            sheet = wb.sheet_by_name(name)
+            break
+    if sheet is None:
+        sheet = wb.sheet_by_index(0)
+
+    print(f"[2/4] Transforming XLS sheet '{sheet.name}' ({sheet.nrows} rows)...")
+
+    # Find header row
+    header_row_idx = 0
+    col_date, col_start, col_end, col_staff, col_notes = 0, 1, 2, 4, 13
+    for i in range(min(3, sheet.nrows)):
+        vals = [str(sheet.cell_value(i, j)).lower().strip() for j in range(sheet.ncols)]
+        if "date" in vals:
+            header_row_idx = i
+            col_date, col_start, col_end, col_staff, col_notes = _get_col_indices(
+                [sheet.cell_value(i, j) for j in range(sheet.ncols)]
+            )
+            break
+
+    rows = []
+    for i in range(header_row_idx + 1, sheet.nrows):
+        try:
+            def cell(col):
+                return sheet.cell(i, col) if sheet.ncols > col else None
+
+            date_cell  = cell(col_date)
+            start_cell = cell(col_start)
+            end_cell   = cell(col_end)
+            staff_val  = str(sheet.cell_value(i, col_staff)).strip() if sheet.ncols > col_staff else ""
+            notes_val  = str(sheet.cell_value(i, col_notes)).strip() if sheet.ncols > col_notes else ""
+
+            if not date_cell or date_cell.ctype == 0:
+                continue
+
+            # Parse date
+            if date_cell.ctype == xlrd.XL_CELL_DATE:
+                dt = xlrd.xldate_as_datetime(date_cell.value, wb.datemode)
+                date_s = dt.strftime("%Y-%m-%d")
+            elif date_cell.ctype == xlrd.XL_CELL_TEXT:
+                s = date_cell.value.strip()[:10]
+                date_s = None
+                for fmt in ("%Y-%m-%d", "%m/%d/%Y"):
+                    try:
+                        date_s = datetime.datetime.strptime(s, fmt).strftime("%Y-%m-%d")
+                        break
+                    except ValueError:
+                        pass
+                if not date_s:
+                    continue
+            else:
+                continue
+
+            # Parse time
+            def parse_xls_time(cell):
+                if cell is None:
+                    return None
+                if cell.ctype == xlrd.XL_CELL_DATE:
+                    dt = xlrd.xldate_as_datetime(cell.value, wb.datemode)
+                    return dt.strftime("%H:%M")
+                if cell.ctype == xlrd.XL_CELL_NUMBER:
+                    total_min = round(cell.value * 1440)
+                    h, m = divmod(total_min, 60)
+                    return f"{h%24:02d}:{m:02d}"
+                if cell.ctype == xlrd.XL_CELL_TEXT:
+                    s = cell.value.strip()
+                    for fmt in ("%H:%M:%S", "%H:%M", "%I:%M:%S %p", "%I:%M %p"):
+                        try:
+                            return datetime.datetime.strptime(s, fmt).strftime("%H:%M")
+                        except ValueError:
+                            pass
+                return None
+
+            start_s  = parse_xls_time(start_cell)
+            end_s    = parse_xls_time(end_cell)
+            resource = _make_resource(staff_val, notes_val)
+
+            if date_s and start_s and end_s and resource:
+                rows.append({"Date": date_s, "Start": start_s, "End": end_s, "Resource": resource})
+        except Exception:
+            pass
+
+    rows.sort(key=lambda r: (r["Date"], r["Start"], r["Resource"]))
+    print(f"      {len(rows)} rows transformed.")
+    return rows
+
+
+def _transform_xlsx(excel_bytes: bytes) -> list:
+    """Parse new .xlsx format using openpyxl."""
+    import openpyxl
+    wb = openpyxl.load_workbook(io.BytesIO(excel_bytes), data_only=True)
     sheet_name = next((s for s in wb.sheetnames if s.lower() == "input"), wb.sheetnames[0])
     ws = wb[sheet_name]
-    print(f"[2/4] Transforming sheet '{sheet_name}' ({ws.max_row} rows)...")
+    print(f"[2/4] Transforming XLSX sheet '{sheet_name}' ({ws.max_row} rows)...")
 
-    # Detect header row
     header_row_idx = 1
     col_date, col_start, col_end, col_staff, col_notes = 0, 1, 2, 4, 13
     for i, row in enumerate(ws.iter_rows(min_row=1, max_row=3, values_only=True), 1):
         row_lower = [str(v).lower().strip() if v else "" for v in row]
         if "date" in row_lower:
             header_row_idx = i
-            col_date  = row_lower.index("date")
-            col_start = next((j for j, v in enumerate(row_lower) if "start" in v), 1)
-            col_end   = next((j for j, v in enumerate(row_lower) if "end" in v), 2)
-            col_staff = next((j for j, v in enumerate(row_lower) if "staff" in v), 4)
-            col_notes = next((j for j, v in enumerate(row_lower) if "note" in v), 13)
+            col_date, col_start, col_end, col_staff, col_notes = _get_col_indices(row)
             break
 
     rows = []
@@ -224,10 +343,10 @@ def transform_excel(excel_bytes: bytes) -> list:
         if date_val is None:
             continue
 
-        date_s    = _parse_date(date_val)
-        start_s   = _parse_time(start_val)
-        end_s     = _parse_time(end_val)
-        resource  = _make_resource(staff_val, notes_val)
+        date_s   = _parse_date(date_val)
+        start_s  = _parse_time(start_val)
+        end_s    = _parse_time(end_val)
+        resource = _make_resource(staff_val, notes_val)
 
         if date_s and start_s and end_s and resource:
             rows.append({"Date": date_s, "Start": start_s, "End": end_s, "Resource": resource})
