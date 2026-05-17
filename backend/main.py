@@ -397,10 +397,11 @@ async def lifespan(app: FastAPI):
     _loop = asyncio.get_event_loop()
     init_db()
     facs = load_facilities()
-    schedule_all(facs)
-    scheduler.start()
+    # SCHEDULER DISABLED — uncomment below when ready to automate
+    # schedule_all(facs)
+    # scheduler.start()
     yield
-    scheduler.shutdown()
+    # scheduler.shutdown()
 
 _loop = None
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None)
