@@ -38,8 +38,8 @@ function miamiTime(iso) {
   try {
     return new Date(iso + "Z").toLocaleString("en-US", {
       timeZone: "America/New_York",
-      hour: "2-digit", minute: "2-digit",
-      hour12: true, month: "numeric", day: "numeric"
+      hour: "numeric", minute: "2-digit",
+      hour12: true
     })
   } catch { return iso }
 }
@@ -134,6 +134,7 @@ const CSS = `
     transition: border-color 0.15s, color 0.15s;
   }
   .icon-btn:hover { border-color: #0A0A0A; color: #0A0A0A; }
+  .icon-btn.ok { border-color: #86EFAC; color: #16A34A; }
   .icon-btn.warn { border-color: #F6AD55; color: #D97706; }
   .icon-btn.expired { border-color: #FC8181; color: #E53E3E; }
 
@@ -387,13 +388,11 @@ function FacRow({ fac, onCookie, onRun, onLog }) {
           {fac.name}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-          {fac.last_sync?.started_at && (
-            <span style={{ fontSize: 10, color: "#AAA", fontFamily: "'JetBrains Mono', monospace" }}>
-              {miamiTime(fac.last_sync.started_at)}
-              {fac.last_sync?.rows ? ` · ${fac.last_sync.rows.toLocaleString()}` : ""}
-            </span>
-          )}
-          {ckS === "expired" && <span style={{ fontSize: 9, fontWeight: 700, color: "#E53E3E", letterSpacing: "0.05em", textTransform: "uppercase" }}>cookie exp</span>}
+          <span style={{ fontSize: 10, color: "#AAA", fontFamily: "'JetBrains Mono', monospace" }}>
+            {fac.last_sync?.started_at ? miamiTime(fac.last_sync.started_at) : "–"}
+            {" · "}{fac.last_sync ? (fac.last_sync.rows ?? 0).toLocaleString() : "–"}
+          </span>
+          {ckS === "expired" && <span style={{ fontSize: 9, fontWeight: 700, color: "#E53E3E", letterSpacing: "0.05em", textTransform: "uppercase" }}>exp</span>}
           {ckS === "warn" && <span style={{ fontSize: 9, fontWeight: 700, color: "#D97706", letterSpacing: "0.05em", textTransform: "uppercase" }}>pronto</span>}
         </div>
       </div>
@@ -414,14 +413,16 @@ function FacRow({ fac, onCookie, onRun, onLog }) {
 
       {/* Actions */}
       <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-        {fac.has_cookie && (
+        {fac.has_cookie ? (
           <button
             onClick={() => onCookie(fac)}
-            className={`icon-btn${ckS === "expired" ? " expired" : ckS === "warn" ? " warn" : ""}`}
-            title="Actualizar cookie"
+            className={`icon-btn${ckS === "expired" ? " expired" : ckS === "warn" ? " warn" : ckS === "ok" ? " ok" : ""}`}
+            title={ckS === "ok" ? `Cookie OK · ${timeAgo(fac.cookie_updated_at)}` : ckS === "warn" ? "Pronto a expirar" : ckS === "expired" ? "Expirada" : "Actualizar"}
           >
-            {["finnly","upperhand","glofox"].includes(fac.platform) ? "🔑" : "🍪"}
+            {["finnly","upperhand","glofox"].includes(fac.platform) ? "🔑" : ckS === "ok" ? "✓" : ckS === "warn" ? "⚠" : "✕"}
           </button>
+        ) : (
+          <div style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#E0E0E0" }}>–</div>
         )}
         {fac.last_sync && (
           <button onClick={() => onLog(fac.last_sync.id, fac.name)} className="icon-btn" title="Ver log">≡</button>
